@@ -769,11 +769,13 @@ def zalo_webhook():
                 headers={'access_token': token},
                 timeout=5
             ).json()
+            print(f"[ZALO] Profile API: {res}")
             data = res.get('data', {})
             name = data.get('display_name', '') or data.get('name', '')
             phone = data.get('phone', '')
             return name, phone
-        except Exception:
+        except Exception as e:
+            print(f"[ZALO] Loi lay profile: {e}")
             return '', ''
 
     def _forward_admin(original_msg):
