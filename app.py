@@ -531,6 +531,15 @@ def zalo_send(user_id, text):
 # Luu cau tra loi cuoi cung cho moi user (de tao audio khi can)
 _last_answers = {}  # {user_id: answer_text}
 
+# Trang thai hoi thoai (cho confirm chuyen Admin)
+_user_state = {}  # {user_id: {'state': 'waiting_confirm', 'msg': original_msg}}
+
+_YES_WORDS = {'co','có','uh','ừ','ừh','ừm','uhm','ok','oke','okay','yes',
+              'ui','ừa','đúng','duoc','được','vang','vâng','sure','dc',
+              'muon','muốn','cho','tất nhiên','tat nhien','nha','nhe','đi'}
+_NO_WORDS  = {'khong','không','no','thoi','thôi','ko','k','khỏi','khoi',
+              'bỏ qua','bo qua','thôi không','thoi khong'}
+
 # ── LOG CAU HOI ───────────────────────────────────────────────────────────────
 import datetime as _dt
 _qa_log = []   # [{time, user_id, question, answer}]
@@ -667,14 +676,14 @@ _ZALO_SYSTEM = (
     "Ban la Tro Ly Nhat Go -- tra loi cau hoi nhan vien Cong ty TNHH MTV Nhat Go.\n\n"
     "QUY TAC BAT BUOC:\n"
     "1. CHI dung thong tin trong VAN BAN QUY DINH ben duoi. KHONG dung kien thuc ben ngoai.\n"
-    "2. Van ban sap xep MOI NHAT -> CU NHAT. Quy dinh nam moi hon co HIEU LUC CAO HON.\n"
-    "3. Neu day du: nam ban hanh, so ngay, so lan, muc tien, dieu kien cu the.\n"
-    "4. Neu khong co: noi 'Cau hoi nay chua co thong tin, anh/chi/em lien he Nhan Su nhe.'\n"
+    "2. UU TIEN quy dinh NAM MOI NHAT. Neu co nhieu phien ban, chi lay phien ban moi nhat.\n"
+    "3. TOM GON, DE HIEU: Neu ro so ngay, so lan, muc tien, dieu kien cu the.\n"
+    "4. Neu khong co thong tin: noi 'Cau hoi nay chua co thong tin, anh/chi/em lien he Nhan Su nhe.'\n"
     "5. Cuoi tra loi ghi: (Nguon: ten van ban, nam)\n\n"
     "DINH DANG:\n"
-    "KHONG dung markdown. Liet ke bang so thu tu. Gion am ap nhu HR giai thich truc tiep.\n"
-    "Xung 'toi', goi nhan vien la 'anh/chi/em'.\n"
-    "Tra loi NGAN GON phu hop voi chat (toi da 400 tu).\n\n"
+    "KHONG dung markdown. Liet ke bang so thu tu ngan gon.\n"
+    "Xung 'toi', goi nhan vien la 'ban'.\n"
+    "Tra loi NGAN GON, TOI DA 300 TU, de hieu nhu dang giai thich cho ban be.\n\n"
     "VAN BAN QUY DINH:\n"
 )
 
@@ -705,16 +714,10 @@ def zalo_webhook():
     print(f"[ZALO] Sender ID: {sender_id}")
     print(f"[ZALO] Hoi: {msg_text[:80]}")
 
-    # Xu ly lenh nghe audio
-    _NGHE_KEYWORDS = {'nghe', '🔊', 'nghe audio', 'doc cho toi nghe', 'phat audio'}
-    if msg_text.lower().strip() in _NGHE_KEYWORDS:
-        last = _last_answers.get(sender_id, '')
-        if last:
-            zalo_send(sender_id, '🔊 Dang tao audio, vui long cho giay lat...')
-            zalo_send_audio(sender_id, last)
-        else:
-            zalo_send(sender_id, 'Chua co cau tra loi nao de phat. Anh/chi/em hay hoi cau hoi truoc nhe.')
-        return jsonify({'status': 'ok'})
+    # ID Zalo ca nhan cua Admin de nhan chuyen tiep tin nhan
+    ADMIN_ZALO_ID = os.environ.get('ADMIN_ZALO_ID', '7072813436072789004')
+
+    ADMIN_ZALO_ID = os.environ.get('ADMIN_ZALO_ID', '7072813436072789004')
 
     cfg = load_config()
     api_key = cfg.get('api_key', '').strip()
@@ -722,31 +725,85 @@ def zalo_webhook():
         zalo_send(sender_id, 'He thong dang bao tri. Vui long lien he Nhan Su.')
         return jsonify({'status': 'ok'})
 
-    context, results = search(msg_text, BM25_INDEX, CHUNKS)
-    if not context:
-        zalo_send(sender_id,
-            'Cau hoi nay toi chua tim thay thong tin trong tai lieu noi bo. '
-            'Anh/chi/em vui long lien he phong Nhan Su de duoc ho tro nhe.')
+    def _tra_loi_quy_dinh(question):
+        """Goi Claude tra loi cau hoi quy dinh, tra ve chuoi ket qua."""
+        context, results = search(question, BM25_INDEX, CHUNKS, top_k=5)
+        if not context or not results:
+            return None, None
+        top_score = results[0][1]
+        if top_score < 0.3:
+            return None, None
+        source = results[0][0]['title'][:60]
+        try:
+            client = anthropic.Anthropic(api_key=api_key)
+            resp = client.messages.create(
+                model='claude-haiku-4-5-20251001',
+                max_tokens=600,
+                system=_ZALO_SYSTEM + context,
+                messages=[{'role': 'user', 'content': question}]
+            )
+            return resp.content[0].text, source
+        except Exception as e:
+            print(f"[ZALO] Loi Claude: {e}")
+            return None, None
+
+    def _forward_admin(original_msg):
+        """Chuyen tin nhan toi Admin."""
+        if ADMIN_ZALO_ID and sender_id != ADMIN_ZALO_ID:
+            zalo_send(ADMIN_ZALO_ID,
+                f'📨 Nhan vien nhan tin (ID: {sender_id}):\n'
+                f'"{original_msg}"\n\n'
+                f'→ Vao oa.zalo.me de tra loi truc tiep.')
+
+    # ── TRANG THAI: Dang cho chon (quy dinh hay lien lac Sep) ───────────────
+    state = _user_state.get(sender_id, {})
+    if state.get('state') == 'waiting_choice':
+        # Kiem tra xem co phai cau hoi quy dinh khong
+        answer, source = _tra_loi_quy_dinh(msg_text)
+
+        if answer:
+            # La cau hoi quy dinh
+            _user_state.pop(sender_id, None)
+            log_qa(sender_id, msg_text, answer)
+            reply = f'Cam on ban da hoi thong tin ve quy dinh cong ty!\n\n{answer}'
+            if source:
+                reply += f'\n\n(Nguon: {source})'
+            zalo_send(sender_id, reply)
+            print(f"[ZALO] Bot tra loi quy dinh sau waiting_choice")
+        else:
+            # Khong phai quy dinh → muon lien lac Sep
+            _user_state.pop(sender_id, None)
+            orig = state.get('msg', msg_text)
+            _forward_admin(orig + ' / ' + msg_text)
+            zalo_send(sender_id,
+                'Tin nhan cua ban da duoc chuyen toi Sep roi nha! 📨\n\n'
+                'Neu Sep chua tra loi ban, chac la Sep dang ban, '
+                'xiu Sep tra loi lien, nhung khong tre qua 24 tieng dau nha! 😊')
+            print(f"[ZALO] Da forward cho Admin: {sender_id}")
+
         return jsonify({'status': 'ok'})
 
-    source = results[0][0]['title'][:60] if results else ''
-    try:
-        client = anthropic.Anthropic(api_key=api_key)
-        resp = client.messages.create(
-            model='claude-haiku-4-5-20251001',
-            max_tokens=800,
-            system=_ZALO_SYSTEM + context,
-            messages=[{'role': 'user', 'content': msg_text}]
-        )
-        answer = resp.content[0].text
-        log_qa(sender_id, msg_text, resp.content[0].text)
+    # ── TIN NHAN MOI HOAN TOAN ───────────────────────────────────────────────
+    # Kiem tra xem co phai cau hoi quy dinh khong
+    answer, source = _tra_loi_quy_dinh(msg_text)
+
+    if answer:
+        # TRUONG HOP 1: Tin nhan lien quan quy dinh → Bot tra loi ngay
+        _user_state.pop(sender_id, None)
+        log_qa(sender_id, msg_text, answer)
+        reply = f'Chao ban! Cam on ban da hoi thong tin ve quy dinh cong ty!\n\n{answer}'
         if source:
-            answer += f'\n\n(Nguon: {source})'
-        zalo_send(sender_id, answer)
-        print(f"[ZALO] Da tra loi ({len(answer)} ky tu)")
-    except Exception as e:
-        print(f"[ZALO] Loi Claude: {e}")
-        zalo_send(sender_id, 'Co loi xay ra. Vui long thu lai sau.')
+            reply += f'\n\n(Nguon: {source})'
+        zalo_send(sender_id, reply)
+        print(f"[ZALO] Bot tra loi quy dinh moi")
+    else:
+        # TRUONG HOP 2: Khong lien quan quy dinh → Chao va hoi y dinh
+        _user_state[sender_id] = {'state': 'waiting_choice', 'msg': msg_text}
+        zalo_send(sender_id,
+            'Chao ban, hom nay toi co the giup gi cho ban? 😊\n\n'
+            'Toi la he thong tu dong do Sep tao ra.\n'
+            'Ban muon hoi ve quy dinh cong ty hay lien lac voi Sep?')
+        print(f"[ZALO] Tin nhan khong ro, hoi y dinh: {msg_text[:40]}")
 
     return jsonify({'status': 'ok'})
 
