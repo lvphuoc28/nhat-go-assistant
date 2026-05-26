@@ -704,11 +704,8 @@ def zalo_webhook():
             messages=[{'role': 'user', 'content': msg_text}]
         )
         answer = resp.content[0].text
-        # Luu cau tra loi de dung khi user muon nghe audio
-        _last_answers[sender_id] = answer
         if source:
             answer += f'\n\n(Nguon: {source})'
-        answer += '\n\n🔊 Nhan "nghe" neu muon nghe bang giong noi'
         zalo_send(sender_id, answer)
         print(f"[ZALO] Da tra loi ({len(answer)} ky tu)")
     except Exception as e:
