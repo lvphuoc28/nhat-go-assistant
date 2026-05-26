@@ -702,6 +702,7 @@ def zalo_webhook():
     if not sender_id or not msg_text:
         return jsonify({'status': 'ok'})
 
+    print(f"[ZALO] Sender ID: {sender_id}")
     print(f"[ZALO] Hoi: {msg_text[:80]}")
 
     # Xu ly lenh nghe audio
