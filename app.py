@@ -758,12 +758,35 @@ def zalo_webhook():
             print(f"[ZALO] Loi Claude: {e}")
             return None, None
 
+    def _get_user_info(uid):
+        """Lay ten va so dien thoai cua follower tu Zalo API."""
+        try:
+            cfg = load_config()
+            token = cfg.get('zalo_access_token', '')
+            res = _http.get(
+                'https://openapi.zalo.me/v2.0/oa/getprofile',
+                params={'data': json.dumps({'user_id': uid})},
+                headers={'access_token': token},
+                timeout=5
+            ).json()
+            data = res.get('data', {})
+            name = data.get('display_name', '') or data.get('name', '')
+            phone = data.get('phone', '')
+            return name, phone
+        except Exception:
+            return '', ''
+
     def _forward_admin(original_msg):
-        """Chuyen tin nhan toi Admin."""
+        """Chuyen tin nhan toi Admin kem ten nguoi nhan."""
         if ADMIN_ZALO_ID and sender_id != ADMIN_ZALO_ID:
+            name, phone = _get_user_info(sender_id)
+            name_line = f'👤 Tên: {name}' if name else f'👤 ID: {sender_id}'
+            phone_line = f'📞 SĐT: {phone}\n' if phone else ''
             zalo_send(ADMIN_ZALO_ID,
-                f'📨 Nhân viên nhắn tin (ID: {sender_id}):\n'
-                f'"{original_msg}"\n\n'
+                f'📨 Nhân viên nhắn tin:\n'
+                f'{name_line}\n'
+                f'{phone_line}'
+                f'💬 Nội dung: "{original_msg}"\n\n'
                 f'→ Vào oa.zalo.me để trả lời trực tiếp.')
 
     # ── TRANG THAI: Dang cho chon (quy dinh hay lien lac Sep) ───────────────
