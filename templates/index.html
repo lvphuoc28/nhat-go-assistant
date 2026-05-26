@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="zalo-platform-site-verification" content="EVwu6RxHR2L3s-mRjgyuH5A9iqo-_sOLCZam" />
+<title>Tro Ly Nhat Go</title>
+<script src="https://code.responsivevoice.org/responsivevoice.js?key=FREE"></script>
+<style>
+:root {
+  --c1: #4A2518;
+  --c2: #6B3A2A;
+  --c3: #D4956A;
+  --c4: #F5EDE8;
+  --white: #fff;
+  --bg: #F2F2F7;
+  --gray: #E5E5EA;
+  --gray2: #8E8E93;
+  --text: #1C1C1E;
+  --green: #34C759;
+  --red: #FF3B30;
+  --shadow: 0 2px 16px rgba(0,0,0,0.10);
+  --radius: 20px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* HEADER */
+.hdr {
+  background: linear-gradient(135deg, var(--c1) 0%, var(--c2) 100%);
+  padding: 0 16px;
+  height: 62px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.25);
+  flex-shrink: 0;
+}
+.hdr-logo {
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.18);
+  border: 1.5px solid rgba(255,255,255,.25);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 800;
+  color: #fff; letter-spacing: -1px;
+  flex-shrink: 0;
+}
+.hdr-info h1 { font-size: 16px; font-weight: 700; color: #fff; letter-spacing: -.3px; }
+.hdr-info p  { font-size: 11px; color: rgba(255,255,255,.6); margin-top: 1px; }
+.hdr-right   { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.status-pill {
+  display: flex; align-items: center; gap: 5px;
+  background: rgba(255,255,255,.12);
+  border-radius: 20px; padding: 4px 10px;
+  font-size: 11px; color: rgba(255,255,255,.8);
+}
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+.dot.off { background: var(--red); }
+.hdr-btn {
+  width: 34px; height: 34px;
+  border-radius: 10px; border: none;
+  background: rgba(255,255,255,.12); color: #fff;
+  font-size: 17px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s; flex-shrink: 0;
+}
+.hdr-btn:hover { background: rgba(255,255,255,.22); }
+.hdr-btn.muted { opacity: .4; }
+
+/* CHAT */
+.chat {
+  flex: 1; overflow-y: auto;
+  padding: 16px 14px 8px;
+  display: flex; flex-direction: column; gap: 10px;
+  scroll-behavior: smooth;
+}
+.chat::-webkit-scrollbar { width: 4px; }
+.chat::-webkit-scrollbar-thumb { background: var(--gray); border-radius: 2px; }
+
+/* WELCOME */
+.welcome { text-align: center; padding: 32px 20px; color: var(--gray2); margin: auto 0; }
+.welcome-icon { font-size: 52px; margin-bottom: 14px; filter: drop-shadow(0 4px 8px rgba(0,0,0,.1)); }
+.welcome h2 { font-size: 18px; font-weight: 700; color: var(--c2); margin-bottom: 8px; }
+.welcome p  { font-size: 14px; line-height: 1.65; color: var(--gray2); }
+
+/* MESSAGES */
+.row { display: flex; gap: 8px; align-items: flex-end; animation: fadeUp .2s ease; }
+.row.me { flex-direction: row-reverse; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+.av {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: #fff;
+}
+.row.bot .av { background: linear-gradient(135deg, var(--c2), var(--c3)); }
+.row.me  .av { background: linear-gradient(135deg, #3C3C3E, #636366); }
+
+.bbl {
+  max-width: 80%; padding: 12px 15px; border-radius: 18px;
+  font-size: 14.5px; line-height: 1.6; word-break: break-word;
+  box-shadow: var(--shadow);
+}
+.row.bot .bbl { background: #fff; color: var(--text); border-bottom-left-radius: 5px; }
+.row.me  .bbl {
+  background: linear-gradient(135deg, var(--c2), var(--c1));
+  color: #fff; border-bottom-right-radius: 5px;
+}
+.src {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-top: 8px; font-size: 11px; color: var(--gray2);
+  background: var(--bg); padding: 3px 9px; border-radius: 10px;
+  border: 1px solid var(--gray);
+}
+.cursor {
+  display: inline-block; width: 2px; height: 14px;
+  background: var(--c3); margin-left: 2px; vertical-align: middle;
+  animation: blink .7s infinite;
+}
+@keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
+
+/* TYPING INDICATOR */
+.typing-row { display: flex; gap: 8px; align-items: center; }
+.typing {
+  display: flex; gap: 5px; padding: 12px 16px;
+  background: #fff; border-radius: 18px;
+  border-bottom-left-radius: 5px; box-shadow: var(--shadow);
+}
+.typing span {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--c3);
+  animation: bob 1.2s infinite;
+}
+.typing span:nth-child(2) { animation-delay: .2s; }
+.typing span:nth-child(3) { animation-delay: .4s; }
+@keyframes bob { 0%,80%,100% { transform:scale(.65); opacity:.4; } 40% { transform:scale(1); opacity:1; } }
+
+/* QUICK BUTTONS */
+.quick { padding: 0 14px 8px; display: flex; gap: 7px; flex-wrap: wrap; flex-shrink: 0; }
+.q-btn {
+  padding: 7px 13px; background: #fff; color: var(--c2);
+  border: 1.5px solid var(--c3); border-radius: 20px;
+  font-size: 12.5px; cursor: pointer; transition: all .15s;
+  font-family: inherit; white-space: nowrap;
+}
+.q-btn:hover { background: var(--c2); color: #fff; border-color: var(--c2); }
+
+/* INPUT BAR */
+.inp-wrap {
+  padding: 10px 12px 14px; background: #fff;
+  border-top: 1px solid var(--gray);
+  display: flex; gap: 8px; align-items: flex-end; flex-shrink: 0;
+}
+textarea {
+  flex: 1; padding: 10px 14px;
+  border: 1.5px solid var(--gray); border-radius: 22px;
+  font-size: 15px; font-family: inherit; resize: none; outline: none;
+  max-height: 100px; line-height: 1.4; transition: border-color .15s;
+  background: var(--bg);
+}
+textarea:focus { border-color: var(--c3); background: #fff; }
+textarea::placeholder { color: var(--gray2); }
+
+.mic-btn {
+  width: 44px; height: 44px; border-radius: 50%; border: none;
+  background: var(--bg); color: var(--c2); font-size: 19px;
+  cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.mic-btn:hover { background: var(--c4); }
+.mic-btn.rec {
+  background: var(--red); color: #fff;
+  animation: pulse .9s infinite;
+}
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(255,59,48,.4); }
+  50%      { box-shadow: 0 0 0 8px rgba(255,59,48,0); }
+}
+
+.send-btn {
+  width: 44px; height: 44px; border-radius: 50%; border: none;
+  background: linear-gradient(135deg, var(--c2), var(--c1));
+  color: #fff; font-size: 19px; cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+  box-shadow: 0 3px 10px rgba(74,37,24,.35);
+}
+.send-btn:hover { transform: scale(1.06); }
+.send-btn:disabled { background: var(--gray); box-shadow: none; cursor: not-allowed; transform: none; }
+
+/* VOICE STATUS BAR */
+.voice-bar {
+  display: none;
+  padding: 6px 16px; background: rgba(255,59,48,.08);
+  border-top: 1px solid rgba(255,59,48,.15);
+  font-size: 12px; color: var(--red);
+  text-align: center; flex-shrink: 0;
+  animation: fadeUp .2s ease;
+}
+.voice-bar.show { display: block; }
+
+/* MODAL */
+.overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.5); z-index: 100;
+  align-items: center; justify-content: center; padding: 20px;
+}
+.overlay.show { display: flex; }
+.modal {
+  background: #fff; border-radius: 22px; padding: 26px;
+  width: 100%; max-width: 440px;
+  box-shadow: 0 24px 64px rgba(0,0,0,.3);
+  animation: scaleIn .18s ease;
+}
+@keyframes scaleIn { from { transform:scale(.92); opacity:0; } to { transform:scale(1); opacity:1; } }
+.modal h2 { font-size: 18px; color: var(--c1); margin-bottom: 6px; font-weight: 700; }
+.modal p  { font-size: 13px; color: var(--gray2); margin-bottom: 16px; line-height: 1.55; }
+.modal label { font-size: 13px; font-weight: 600; color: var(--text); display: block; margin-bottom: 6px; }
+.modal input {
+  width: 100%; padding: 11px 14px;
+  border: 1.5px solid var(--gray); border-radius: 11px;
+  font-size: 14px; font-family: inherit; outline: none; margin-bottom: 16px;
+  transition: border-color .15s;
+}
+.modal input:focus { border-color: var(--c3); }
+.modal-btns { display: flex; gap: 10px; }
+.btn-save {
+  flex: 1; padding: 12px;
+  background: linear-gradient(135deg, var(--c2), var(--c1));
+  color: #fff; border: none; border-radius: 11px;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  font-family: inherit; transition: opacity .15s;
+}
+.btn-save:hover { opacity: .88; }
+.btn-cancel {
+  padding: 12px 18px; background: var(--bg); color: var(--text);
+  border: none; border-radius: 11px; font-size: 15px;
+  cursor: pointer; font-family: inherit; transition: background .15s;
+}
+.btn-cancel:hover { background: var(--gray); }
+
+/* VOICE INFO BOX */
+.voice-info {
+  font-size: 12px; color: var(--gray2);
+  background: var(--bg); border-radius: 8px;
+  padding: 8px 12px; margin-bottom: 16px;
+  border: 1px solid var(--gray);
+  line-height: 1.5;
+}
+.voice-info b { color: var(--c2); }
+
+@media (max-width: 480px) {
+  .bbl { max-width: 88%; font-size: 14px; }
+  .hdr-info h1 { font-size: 14px; }
+  .status-pill span { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-logo">NG</div>
+  <div class="hdr-info">
+    <h1>Tro Ly Nhat Go</h1>
+    <p>Hoi dap quy dinh noi bo</p>
+  </div>
+  <div class="hdr-right">
+    <div class="status-pill">
+      <div class="dot off" id="sDot"></div>
+      <span id="sTxt">Dang ket noi...</span>
+    </div>
+    <button class="hdr-btn" id="voiceBtn" onclick="toggleVoice()" title="Bat/tat doc">&#128266;</button>
+    <button class="hdr-btn" onclick="openCfg()" title="Cai dat">&#9881;</button>
+  </div>
+</div>
+
+<div class="voice-bar" id="voiceBar"></div>
+
+<div class="chat" id="chat">
+  <div class="welcome" id="welcome">
+    <div class="welcome-icon">&#129683;</div>
+    <h2>Xin chao! Toi la Tro Ly Nhat Go</h2>
+    <p>Hoi toi bat cu dieu gi ve<br>quy dinh va chinh sach cong ty.</p>
+  </div>
+</div>
+
+<div class="quick" id="quick">
+  <button class="q-btn" onclick="ask('Thuong chuyen can duoc tinh nhu the nao?')">&#128176; Thuong chuyen can</button>
+  <button class="q-btn" onclick="ask('Nghi phep viec rieng may lan trong thang?')">&#128197; Phep viec rieng</button>
+  <button class="q-btn" onclick="ask('Quy y te ho tro nhung gi?')">&#127973; Quy y te</button>
+  <button class="q-btn" onclick="ask('Di tre bao nhieu lan thi bi ky luat?')">&#9888; Ky luat</button>
+</div>
+
+<div class="inp-wrap">
+  <textarea id="box" placeholder="Hoi ve quy dinh cong ty..." rows="1"
+    onkeydown="onKey(event)" oninput="resizeBox(this)"></textarea>
+  <button class="mic-btn" id="micBtn" onclick="toggleMic()" title="Nhan de noi" style="display:none">&#127908;</button>
+  <button class="send-btn" id="sendBtn" onclick="send()">&#8593;</button>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2>&#9881; Cai dat API</h2>
+    <p>Nhap Claude API Key de ket noi.<br>
+       Lay tai: <strong>console.anthropic.com</strong></p>
+    <label>Claude API Key</label>
+    <input type="password" id="keyIn" placeholder="sk-ant-..." autocomplete="off">
+    <div class="voice-info" id="voiceInfo">
+      Dang kiem tra giong doc tieng Viet...
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeCfg()">Huy</button>
+      <button class="btn-save" onclick="saveCfg()">&#128190; Luu</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// TRANG THAI TOAN CUC
+// ============================================================
+var busy = false;
+var voiceOn = true;
+var isRec = false;
+var recog = null;
+
+// ============================================================
+// KHOI DONG
+// ============================================================
+window.addEventListener('load', function() {
+  checkStatus();
+  initSpeechInput();
+  initSpeechOutput();
+});
+
+// Kiem tra trang thai API
+function checkStatus() {
+  fetch('/api/status')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.configured) {
+        document.getElementById('sDot').classList.remove('off');
+        document.getElementById('sTxt').textContent = 'San sang';
+      } else {
+        document.getElementById('sDot').classList.add('off');
+        document.getElementById('sTxt').textContent = 'Chua cai dat';
+        setTimeout(openCfg, 700);
+      }
+    })
+    .catch(function() {
+      document.getElementById('sTxt').textContent = 'Loi ket noi';
+    });
+}
+
+// ============================================================
+// VOICE INPUT — SpeechRecognition
+// ============================================================
+function initSpeechInput() {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    console.log('[MIC] SpeechRecognition khong ho tro tren trinh duyet nay');
+    return;
+  }
+  recog = new SR();
+  recog.lang = 'vi-VN';
+  recog.continuous = false;
+  recog.interimResults = true;
+  recog.maxAlternatives = 1;
+
+  recog.onstart = function() {
+    isRec = true;
+    var btn = document.getElementById('micBtn');
+    btn.classList.add('rec');
+    btn.innerHTML = '&#9209;';
+    document.getElementById('box').placeholder = 'Dang nghe...';
+    showVoiceBar('Dang nghe giong noi...');
+  };
+
+  recog.onresult = function(e) {
+    var txt = '';
+    for (var i = e.resultIndex; i < e.results.length; i++) {
+      txt += e.results[i][0].transcript;
+    }
+    var box = document.getElementById('box');
+    box.value = txt;
+    resizeBox(box);
+  };
+
+  recog.onend = function() {
+    isRec = false;
+    var btn = document.getElementById('micBtn');
+    btn.classList.remove('rec');
+    btn.innerHTML = '&#127908;';
+    document.getElementById('box').placeholder = 'Hoi ve quy dinh cong ty...';
+    hideVoiceBar();
+    var v = document.getElementById('box').value.trim();
+    if (v) { send(); }
+  };
+
+  recog.onerror = function(e) {
+    isRec = false;
+    var btn = document.getElementById('micBtn');
+    btn.classList.remove('rec');
+    btn.innerHTML = '&#127908;';
+    document.getElementById('box').placeholder = 'Hoi ve quy dinh cong ty...';
+    hideVoiceBar();
+    if (e.error === 'not-allowed') {
+      showVoiceBar('Vui long cho phep trinh duyet truy cap micro!');
+      setTimeout(hideVoiceBar, 4000);
+    } else if (e.error === 'no-speech') {
+      showVoiceBar('Khong nghe duoc giong noi. Thu lai nhe!');
+      setTimeout(hideVoiceBar, 2500);
+    }
+  };
+
+  // Hien thi nut mic
+  document.getElementById('micBtn').style.display = 'flex';
+}
+
+function toggleMic() {
+  if (!recog) { return; }
+  if (isRec) {
+    recog.stop();
+  } else {
+    ttsStop();
+    try { recog.start(); } catch(e) { console.log('[MIC] Loi start:', e); }
+  }
+}
+
+// ============================================================
+// VOICE OUTPUT — Google TTS (gTTS) qua server /api/tts
+// ============================================================
+var ttsAudio = null;
+
+function initSpeechOutput() {
+  // Kiem tra xem server co ho tro gTTS khong
+  fetch('/api/tts', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({text: 'kiem tra'})
+  })
+  .then(function(r) {
+    if (r.ok) {
+      console.log('[TTS] gTTS san sang — giong nu tieng Viet');
+      updateVoiceInfo('Giong nu tieng Viet (Google TTS)');
+    } else {
+      console.log('[TTS] gTTS loi, an nut loa');
+      document.getElementById('voiceBtn').style.display = 'none';
+    }
+  })
+  .catch(function() {
+    console.log('[TTS] Khong ket noi duoc server');
+  });
+}
+
+function updateVoiceInfo(voiceName) {
+  var el = document.getElementById('voiceInfo');
+  if (!el) { return; }
+  if (voiceName) {
+    el.innerHTML = 'Giong doc: <b>' + escHtml(voiceName) + '</b>';
+  } else {
+    el.innerHTML = 'Khong co giong doc. Kiem tra ket noi internet.';
+  }
+}
+
+function ttsSpeak(text) {
+  if (!voiceOn || !text) { return; }
+  ttsStop();
+  fetch('/api/tts', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({text: text})
+  })
+  .then(function(r) {
+    if (!r.ok) { throw new Error('TTS error'); }
+    return r.blob();
+  })
+  .then(function(blob) {
+    var url = URL.createObjectURL(blob);
+    ttsAudio = new Audio(url);
+    ttsAudio.playbackRate = 1.1;
+    ttsAudio.play();
+    ttsAudio.onended = function() {
+      URL.revokeObjectURL(url);
+      ttsAudio = null;
+    };
+  })
+  .catch(function(e) {
+    console.log('[TTS] Loi phat am:', e);
+  });
+}
+
+function ttsStop() {
+  if (ttsAudio) {
+    ttsAudio.pause();
+    ttsAudio.src = '';
+    ttsAudio = null;
+  }
+}
+
+function toggleVoice() {
+  voiceOn = !voiceOn;
+  var btn = document.getElementById('voiceBtn');
+  btn.innerHTML = voiceOn ? '&#128266;' : '&#128263;';
+  btn.classList.toggle('muted', !voiceOn);
+  if (!voiceOn) { ttsStop(); }
+}
+
+// ============================================================
+// CHAT — GUI TIN NHAN
+// ============================================================
+function send() {
+  var box = document.getElementById('box');
+  var q = box.value.trim();
+  if (!q || busy) { return; }
+
+  box.value = '';
+  resizeBox(box);
+  document.getElementById('welcome').style.display = 'none';
+  document.getElementById('quick').style.display = 'none';
+
+  addMsg('me', q);
+  showTyping();
+  busy = true;
+  document.getElementById('sendBtn').disabled = true;
+
+  fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question: q })
+  })
+  .then(function(resp) {
+    if (!resp.ok) {
+      return resp.json().then(function(err) {
+        hideTyping();
+        addMsg('bot', 'Loi: ' + (err.error || 'Khong the ket noi'));
+        throw new Error('HTTP error');
+      });
+    }
+    hideTyping();
+    var result = createBotBubble();
+    var bblEl = result.bblEl;
+    var fullText = '';
+    var srcLabel = '';
+
+    var reader = resp.body.getReader();
+    var decoder = new TextDecoder();
+    var buffer = '';
+
+    function readChunk() {
+      return reader.read().then(function(chunk) {
+        if (chunk.done) { return; }
+        buffer += decoder.decode(chunk.value, { stream: true });
+        var parts = buffer.split('\n');
+        buffer = parts.pop();
+        for (var i = 0; i < parts.length; i++) {
+          var line = parts[i];
+          if (line.indexOf('data:') !== 0) { continue; }
+          try {
+            var ev = JSON.parse(line.substring(5));
+            if (ev.t === 'txt') {
+              fullText += ev.d;
+              bblEl.innerHTML = escHtml(fullText) + '<span class="cursor"></span>';
+              scrollBot();
+            } else if (ev.t === 'done') {
+              srcLabel = ev.src || '';
+              bblEl.innerHTML = escHtml(fullText);
+              if (srcLabel) {
+                var tag = document.createElement('div');
+                tag.className = 'src';
+                tag.innerHTML = '&#128196; ' + escHtml(srcLabel);
+                bblEl.appendChild(tag);
+              }
+              scrollBot();
+              if (voiceOn && fullText) { ttsSpeak(fullText); }
+            } else if (ev.t === 'err') {
+              bblEl.textContent = 'Loi: ' + ev.d;
+            }
+          } catch(e) {}
+        }
+        return readChunk();
+      });
+    }
+    return readChunk();
+  })
+  .catch(function(e) {
+    hideTyping();
+    if (e.message !== 'HTTP error') {
+      addMsg('bot', 'Mat ket noi. Thu lai nhe.');
+    }
+  })
+  .finally(function() {
+    busy = false;
+    document.getElementById('sendBtn').disabled = false;
+    document.getElementById('box').focus();
+  });
+}
+
+function ask(q) {
+  document.getElementById('box').value = q;
+  send();
+}
+
+// ============================================================
+// DOM HELPERS
+// ============================================================
+function addMsg(who, txt) {
+  var chat = document.getElementById('chat');
+  var row = document.createElement('div');
+  row.className = 'row ' + who;
+  var av = document.createElement('div');
+  av.className = 'av';
+  av.textContent = who === 'bot' ? 'NG' : 'Toi';
+  var bbl = document.createElement('div');
+  bbl.className = 'bbl';
+  bbl.textContent = txt;
+  row.appendChild(av);
+  row.appendChild(bbl);
+  chat.appendChild(row);
+  scrollBot();
+}
+
+function createBotBubble() {
+  var chat = document.getElementById('chat');
+  var row = document.createElement('div');
+  row.className = 'row bot';
+  var av = document.createElement('div');
+  av.className = 'av';
+  av.textContent = 'NG';
+  var bbl = document.createElement('div');
+  bbl.className = 'bbl';
+  row.appendChild(av);
+  row.appendChild(bbl);
+  chat.appendChild(row);
+  scrollBot();
+  return { bubble: row, bblEl: bbl };
+}
+
+function showTyping() {
+  var chat = document.getElementById('chat');
+  var row = document.createElement('div');
+  row.className = 'row bot';
+  row.id = 'typing';
+  row.innerHTML = '<div class="av">NG</div><div class="typing"><span></span><span></span><span></span></div>';
+  chat.appendChild(row);
+  scrollBot();
+}
+
+function hideTyping() {
+  var el = document.getElementById('typing');
+  if (el) { el.remove(); }
+}
+
+function scrollBot() {
+  var c = document.getElementById('chat');
+  c.scrollTop = c.scrollHeight;
+}
+
+function escHtml(t) {
+  return String(t)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>');
+}
+
+function onKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    send();
+  }
+}
+
+function resizeBox(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+
+function showVoiceBar(msg) {
+  var bar = document.getElementById('voiceBar');
+  bar.textContent = msg;
+  bar.classList.add('show');
+}
+
+function hideVoiceBar() {
+  document.getElementById('voiceBar').classList.remove('show');
+}
+
+// ============================================================
+// CAI DAT (API KEY)
+// ============================================================
+function openCfg() {
+  fetch('/api/get-key')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.key) { document.getElementById('keyIn').value = d.key; }
+    })
+    .catch(function() {});
+  document.getElementById('overlay').classList.add('show');
+}
+
+function closeCfg() {
+  document.getElementById('overlay').classList.remove('show');
+}
+
+function saveCfg() {
+  var key = document.getElementById('keyIn').value.trim();
+  if (!key) { alert('Vui long nhap API Key'); return; }
+  fetch('/api/save-key', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ api_key: key })
+  })
+  .then(function() {
+    closeCfg();
+    checkStatus();
+  })
+  .catch(function() { alert('Loi luu. Thu lai.'); });
+}
+
+document.getElementById('overlay').addEventListener('click', function(e) {
+  if (e.target === e.currentTarget) { closeCfg(); }
+});
+</script>
+</body>
+</html>
