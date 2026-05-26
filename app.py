@@ -528,6 +528,74 @@ def zalo_send(user_id, text):
         print(f"[ZALO] Loi gui: {res}")
     return ok
 
+# Luu cau tra loi cuoi cung cho moi user (de tao audio khi can)
+_last_answers = {}  # {user_id: answer_text}
+
+def zalo_generate_audio(text):
+    """Tao file mp3 tu text bang gTTS."""
+    if not GTTS_AVAILABLE:
+        return None
+    try:
+        clean = text[:600]
+        tts = gTTS(text=clean, lang='vi', slow=False)
+        buf = io.BytesIO()
+        tts.write_to_fp(buf)
+        buf.seek(0)
+        return buf.read()
+    except Exception as e:
+        print(f"[TTS] Loi tao audio: {e}")
+        return None
+
+def zalo_upload_audio(audio_bytes, token):
+    """Upload file mp3 len Zalo, tra ve file_id."""
+    try:
+        res = _http.post(
+            'https://upload.zalo.me/v2.0/oa/upload/file',
+            headers={'access_token': token},
+            files={'file': ('traLoi.mp3', audio_bytes, 'audio/mpeg')},
+            timeout=30
+        ).json()
+        file_id = (res.get('data') or {}).get('file_id', '')
+        if file_id:
+            print(f"[ZALO] Upload audio OK: {file_id[:20]}...")
+        else:
+            print(f"[ZALO] Upload audio loi: {res}")
+        return file_id
+    except Exception as e:
+        print(f"[ZALO] Loi upload audio: {e}")
+        return ''
+
+def zalo_send_audio(user_id, text):
+    """Tao mp3 tu text va gui cho user qua Zalo."""
+    audio_bytes = zalo_generate_audio(text)
+    if not audio_bytes:
+        zalo_send(user_id, 'Xin loi, chuc nang nghe hien chua kha dung.')
+        return False
+    cfg = load_config()
+    token = cfg.get('zalo_access_token', '')
+    file_id = zalo_upload_audio(audio_bytes, token)
+    if not file_id:
+        zalo_send(user_id, 'Xin loi, khong the tao file audio. Vui long doc text phia tren.')
+        return False
+    try:
+        res = _http.post(
+            'https://openapi.zalo.me/v3.0/oa/message/cs',
+            headers={'access_token': token, 'Content-Type': 'application/json'},
+            json={
+                'recipient': {'user_id': user_id},
+                'message': {'attachment': {'type': 'file', 'payload': {'file_id': file_id}}}
+            },
+            timeout=20
+        ).json()
+        if res.get('error') == 0:
+            print(f"[ZALO] Da gui audio cho {user_id}")
+            return True
+        print(f"[ZALO] Loi gui audio: {res}")
+        return False
+    except Exception as e:
+        print(f"[ZALO] Loi gui audio: {e}")
+        return False
+
 def zalo_refresh():
     """Lam moi OA Access Token bang Refresh Token."""
     if not REQUESTS_AVAILABLE:
@@ -602,6 +670,17 @@ def zalo_webhook():
 
     print(f"[ZALO] Hoi: {msg_text[:80]}")
 
+    # Xu ly lenh nghe audio
+    _NGHE_KEYWORDS = {'nghe', '🔊', 'nghe audio', 'doc cho toi nghe', 'phat audio'}
+    if msg_text.lower().strip() in _NGHE_KEYWORDS:
+        last = _last_answers.get(sender_id, '')
+        if last:
+            zalo_send(sender_id, '🔊 Dang tao audio, vui long cho giay lat...')
+            zalo_send_audio(sender_id, last)
+        else:
+            zalo_send(sender_id, 'Chua co cau tra loi nao de phat. Anh/chi/em hay hoi cau hoi truoc nhe.')
+        return jsonify({'status': 'ok'})
+
     cfg = load_config()
     api_key = cfg.get('api_key', '').strip()
     if not api_key:
@@ -616,7 +695,6 @@ def zalo_webhook():
         return jsonify({'status': 'ok'})
 
     source = results[0][0]['title'][:60] if results else ''
-    import json as _json
     try:
         client = anthropic.Anthropic(api_key=api_key)
         resp = client.messages.create(
@@ -626,8 +704,11 @@ def zalo_webhook():
             messages=[{'role': 'user', 'content': msg_text}]
         )
         answer = resp.content[0].text
+        # Luu cau tra loi de dung khi user muon nghe audio
+        _last_answers[sender_id] = answer
         if source:
             answer += f'\n\n(Nguon: {source})'
+        answer += '\n\n🔊 Nhan "nghe" neu muon nghe bang giong noi'
         zalo_send(sender_id, answer)
         print(f"[ZALO] Da tra loi ({len(answer)} ky tu)")
     except Exception as e:
