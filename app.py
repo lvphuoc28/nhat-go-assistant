@@ -557,7 +557,11 @@ def zalo_refresh():
             if res.get('refresh_token'):
                 cfg['zalo_refresh_token'] = res['refresh_token']
             save_config(cfg)
-            print("[ZALO] Da lam moi access token")
+            # Quan trong: cap nhat os.environ de load_config() dung token moi
+            os.environ['ZALO_ACCESS_TOKEN'] = new_tok
+            if res.get('refresh_token'):
+                os.environ['ZALO_REFRESH_TOKEN'] = res['refresh_token']
+            print(f"[ZALO] Da lam moi access token: {new_tok[:20]}...")
             return new_tok
     except Exception as e:
         print(f"[ZALO] Loi refresh token: {e}")
