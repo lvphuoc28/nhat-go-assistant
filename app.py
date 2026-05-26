@@ -478,7 +478,7 @@ def chat():
         try:
             client = anthropic.Anthropic(api_key=api_key)
             with client.messages.stream(
-                model="claude-haiku-4-5-20251001",
+                model="claude-sonnet-4-6",
                 max_tokens=1500,
                 system=system_prompt,
                 messages=[{"role": "user", "content": question}]
@@ -737,7 +737,7 @@ def zalo_webhook():
         try:
             client = anthropic.Anthropic(api_key=api_key)
             resp = client.messages.create(
-                model='claude-haiku-4-5-20251001',
+                model='claude-sonnet-4-6',
                 max_tokens=600,
                 system=_ZALO_SYSTEM + context,
                 messages=[{'role': 'user', 'content': question}]
