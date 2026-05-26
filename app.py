@@ -531,8 +531,11 @@ def zalo_send(user_id, text):
 # Luu cau tra loi cuoi cung cho moi user (de tao audio khi can)
 _last_answers = {}  # {user_id: answer_text}
 
-# Trang thai hoi thoai (cho confirm chuyen Admin)
-_user_state = {}  # {user_id: {'state': 'waiting_confirm', 'msg': original_msg}}
+# Trang thai hoi thoai
+_user_state = {}  # {user_id: {'state': ..., 'msg': ...}}
+
+# Luu ten nhan vien (hoi 1 lan, dung mai mai)
+_user_names = {}  # {user_id: 'Ten nhan vien'}
 
 # Deduplication: luu message ID da xu ly de tranh xu ly 2 lan
 import collections
@@ -714,8 +717,6 @@ def zalo_webhook():
                   (data.get('sender') or {}).get('name', '')
     msg_text  = (data.get('message') or {}).get('text', '').strip()
     msg_id    = (data.get('message') or {}).get('msg_id', '') or f"{sender_id}_{msg_text[:30]}"
-    print(f"[ZALO] Sender data: {data.get('sender', {})}")
-
     if not sender_id or not msg_text:
         return jsonify({'status': 'ok'})
 
@@ -728,10 +729,13 @@ def zalo_webhook():
     print(f"[ZALO] Sender ID: {sender_id}")
     print(f"[ZALO] Hoi: {msg_text[:80]}")
 
-    # ID Zalo ca nhan cua Admin de nhan chuyen tiep tin nhan
     ADMIN_ZALO_ID = os.environ.get('ADMIN_ZALO_ID', '7072813436072789004')
 
-    ADMIN_ZALO_ID = os.environ.get('ADMIN_ZALO_ID', '7072813436072789004')
+    # ── TU DONG LUU TEN TU WEBHOOK ───────────────────────────────────────────
+    # Zalo OA tu dong gui ten/SDT nguoi dung trong webhook, khong can hoi them
+    if sender_name and sender_id not in _user_names:
+        _user_names[sender_id] = sender_name
+        print(f"[ZALO] Luu ten tu webhook: {sender_name}")
 
     cfg = load_config()
     api_key = cfg.get('api_key', '').strip()
@@ -784,10 +788,7 @@ def zalo_webhook():
     def _forward_admin(original_msg):
         """Chuyen tin nhan toi Admin kem ten nguoi nhan."""
         if ADMIN_ZALO_ID and sender_id != ADMIN_ZALO_ID:
-            # Uu tien ten tu webhook, neu khong co thi lay tu API
-            name = sender_name
-            if not name:
-                name, _ = _get_user_info(sender_id)
+            name = _user_names.get(sender_id, '')
             name_line = f'👤 Tên: {name}' if name else f'👤 ID: {sender_id}'
             zalo_send(ADMIN_ZALO_ID,
                 f'📨 Nhân viên nhắn tin:\n'
