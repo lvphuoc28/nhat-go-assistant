@@ -534,6 +534,10 @@ _last_answers = {}  # {user_id: answer_text}
 # Trang thai hoi thoai (cho confirm chuyen Admin)
 _user_state = {}  # {user_id: {'state': 'waiting_confirm', 'msg': original_msg}}
 
+# Deduplication: luu message ID da xu ly de tranh xu ly 2 lan
+import collections
+_processed_msg_ids = collections.deque(maxlen=500)  # Giu 500 ID gan nhat
+
 _YES_WORDS = {'co','có','uh','ừ','ừh','ừm','uhm','ok','oke','okay','yes',
               'ui','ừa','đúng','duoc','được','vang','vâng','sure','dc',
               'muon','muốn','cho','tất nhiên','tat nhien','nha','nhe','đi'}
@@ -707,9 +711,16 @@ def zalo_webhook():
 
     sender_id = (data.get('sender') or {}).get('id', '')
     msg_text  = (data.get('message') or {}).get('text', '').strip()
+    msg_id    = (data.get('message') or {}).get('msg_id', '') or f"{sender_id}_{msg_text[:30]}"
 
     if not sender_id or not msg_text:
         return jsonify({'status': 'ok'})
+
+    # Deduplication: bo qua neu da xu ly tin nhan nay roi
+    if msg_id in _processed_msg_ids:
+        print(f"[ZALO] Duplicate webhook, bo qua: {msg_id[:30]}")
+        return jsonify({'status': 'ok'})
+    _processed_msg_ids.append(msg_id)
 
     print(f"[ZALO] Sender ID: {sender_id}")
     print(f"[ZALO] Hoi: {msg_text[:80]}")
