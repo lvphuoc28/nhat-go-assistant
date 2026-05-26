@@ -680,10 +680,10 @@ _ZALO_SYSTEM = (
     "3. TOM GON, DE HIEU: Neu ro so ngay, so lan, muc tien, dieu kien cu the.\n"
     "4. Neu khong co thong tin: noi 'Cau hoi nay chua co thong tin, anh/chi/em lien he Nhan Su nhe.'\n"
     "5. Cuoi tra loi ghi: (Nguon: ten van ban, nam)\n\n"
-    "DINH DANG:\n"
-    "KHONG dung markdown. Liet ke bang so thu tu ngan gon.\n"
-    "Xung 'toi', goi nhan vien la 'ban'.\n"
-    "Tra loi NGAN GON, TOI DA 300 TU, de hieu nhu dang giai thich cho ban be.\n\n"
+    "ĐỊNH DẠNG:\n"
+    "KHÔNG dùng markdown. Liệt kê bằng số thứ tự ngắn gọn.\n"
+    "Xưng 'tôi', gọi nhân viên là 'bạn'. Viết có dấu tiếng Việt đầy đủ.\n"
+    "Trả lời NGẮN GỌN, TỐI ĐA 300 TỪ, dễ hiểu như đang giải thích cho bạn bè. 😊\n\n"
     "VAN BAN QUY DINH:\n"
 )
 
@@ -722,7 +722,7 @@ def zalo_webhook():
     cfg = load_config()
     api_key = cfg.get('api_key', '').strip()
     if not api_key:
-        zalo_send(sender_id, 'He thong dang bao tri. Vui long lien he Nhan Su.')
+        zalo_send(sender_id, 'Hệ thống đang bảo trì. Vui lòng liên hệ Nhân Sự nha! 🙏')
         return jsonify({'status': 'ok'})
 
     def _tra_loi_quy_dinh(question):
@@ -751,23 +751,22 @@ def zalo_webhook():
         """Chuyen tin nhan toi Admin."""
         if ADMIN_ZALO_ID and sender_id != ADMIN_ZALO_ID:
             zalo_send(ADMIN_ZALO_ID,
-                f'📨 Nhan vien nhan tin (ID: {sender_id}):\n'
+                f'📨 Nhân viên nhắn tin (ID: {sender_id}):\n'
                 f'"{original_msg}"\n\n'
-                f'→ Vao oa.zalo.me de tra loi truc tiep.')
+                f'→ Vào oa.zalo.me để trả lời trực tiếp.')
 
     # ── TRANG THAI: Dang cho chon (quy dinh hay lien lac Sep) ───────────────
     state = _user_state.get(sender_id, {})
     if state.get('state') == 'waiting_choice':
-        # Kiem tra xem co phai cau hoi quy dinh khong
         answer, source = _tra_loi_quy_dinh(msg_text)
 
         if answer:
             # La cau hoi quy dinh
             _user_state.pop(sender_id, None)
             log_qa(sender_id, msg_text, answer)
-            reply = f'Cam on ban da hoi thong tin ve quy dinh cong ty!\n\n{answer}'
+            reply = f'Cảm ơn bạn đã hỏi thông tin về quy định công ty! 😊\n\n{answer}'
             if source:
-                reply += f'\n\n(Nguon: {source})'
+                reply += f'\n\n(Nguồn: {source})'
             zalo_send(sender_id, reply)
             print(f"[ZALO] Bot tra loi quy dinh sau waiting_choice")
         else:
@@ -776,34 +775,33 @@ def zalo_webhook():
             orig = state.get('msg', msg_text)
             _forward_admin(orig + ' / ' + msg_text)
             zalo_send(sender_id,
-                'Tin nhan cua ban da duoc chuyen toi Sep roi nha! 📨\n\n'
-                'Neu Sep chua tra loi ban, chac la Sep dang ban, '
-                'xiu Sep tra loi lien, nhung khong tre qua 24 tieng dau nha! 😊')
+                'Tin nhắn của bạn đã được chuyển tới Sếp rồi nha! 📨\n\n'
+                'Nếu Sếp chưa trả lời bạn, chắc là Sếp đang bận, '
+                'xíu Sếp trả lời liền, nhưng không trễ quá 24 tiếng đâu nha! 😊')
             print(f"[ZALO] Da forward cho Admin: {sender_id}")
 
         return jsonify({'status': 'ok'})
 
     # ── TIN NHAN MOI HOAN TOAN ───────────────────────────────────────────────
-    # Kiem tra xem co phai cau hoi quy dinh khong
     answer, source = _tra_loi_quy_dinh(msg_text)
 
     if answer:
-        # TRUONG HOP 1: Tin nhan lien quan quy dinh → Bot tra loi ngay
+        # TRUONG HOP 1: Lien quan quy dinh → Bot tra loi ngay
         _user_state.pop(sender_id, None)
         log_qa(sender_id, msg_text, answer)
-        reply = f'Chao ban! Cam on ban da hoi thong tin ve quy dinh cong ty!\n\n{answer}'
+        reply = f'Chào bạn! Cảm ơn bạn đã hỏi thông tin về quy định công ty! 😊\n\n{answer}'
         if source:
-            reply += f'\n\n(Nguon: {source})'
+            reply += f'\n\n(Nguồn: {source})'
         zalo_send(sender_id, reply)
         print(f"[ZALO] Bot tra loi quy dinh moi")
     else:
-        # TRUONG HOP 2: Khong lien quan quy dinh → Chao va hoi y dinh
+        # TRUONG HOP 2: Khong lien quan → Chao va hoi y dinh
         _user_state[sender_id] = {'state': 'waiting_choice', 'msg': msg_text}
         zalo_send(sender_id,
-            'Chao ban, hom nay toi co the giup gi cho ban? 😊\n\n'
-            'Toi la he thong tu dong do Sep tao ra.\n'
-            'Ban muon hoi ve quy dinh cong ty hay lien lac voi Sep?')
-        print(f"[ZALO] Tin nhan khong ro, hoi y dinh: {msg_text[:40]}")
+            'Chào bạn, hôm nay tôi có thể giúp gì cho bạn? 😊\n\n'
+            'Tôi là hệ thống tự động do Sếp tạo ra.\n'
+            'Bạn muốn hỏi về quy định công ty hay liên lạc với Sếp?')
+        print(f"[ZALO] Hoi y dinh: {msg_text[:40]}")
 
     return jsonify({'status': 'ok'})
 
