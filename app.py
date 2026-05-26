@@ -769,27 +769,45 @@ def zalo_webhook():
     # ── TRANG THAI: Dang cho chon (quy dinh hay lien lac Sep) ───────────────
     state = _user_state.get(sender_id, {})
     if state.get('state') == 'waiting_choice':
-        answer, source = _tra_loi_quy_dinh(msg_text)
+        msg_lower = msg_text.lower()
 
-        if answer:
-            # La cau hoi quy dinh
-            _user_state.pop(sender_id, None)
-            log_qa(sender_id, msg_text, answer)
-            reply = f'Cảm ơn bạn đã hỏi thông tin về quy định công ty! 😊\n\n{answer}'
-            if source:
-                reply += f'\n\n(Nguồn: {source})'
-            zalo_send(sender_id, reply)
-            print(f"[ZALO] Bot tra loi quy dinh sau waiting_choice")
-        else:
-            # Khong phai quy dinh → muon lien lac Sep
+        # Uu tien check tu khoa muon lien lac Sep TRUOC khi chay BM25
+        _BOSS_KEYWORDS = [
+            'sếp', 'sep', 'liên lạc', 'lien lac', 'liên hệ', 'lien he',
+            'gặp', 'gap', 'nhắn tin', 'nhan tin', 'nói chuyện', 'noi chuyen',
+            'trao đổi', 'trao doi', 'gọi', 'goi', 'có', 'co', 'ok', 'oke',
+            'muốn', 'muon', 'được', 'duoc', 'ừ', 'uh', 'vâng', 'vang', 'yes'
+        ]
+        wants_boss = any(kw in msg_lower for kw in _BOSS_KEYWORDS)
+
+        if wants_boss:
+            # Muon lien lac Sep → forward ngay
             _user_state.pop(sender_id, None)
             orig = state.get('msg', msg_text)
-            _forward_admin(orig + ' / ' + msg_text)
+            _forward_admin(f'{orig}\n→ Trả lời: {msg_text}')
             zalo_send(sender_id,
                 'Tin nhắn của bạn đã được chuyển tới Sếp rồi nha! 📨\n\n'
                 'Nếu Sếp chưa trả lời bạn, chắc là Sếp đang bận, '
                 'xíu Sếp trả lời liền, nhưng không trễ quá 24 tiếng đâu nha! 😊')
-            print(f"[ZALO] Da forward cho Admin: {sender_id}")
+            print(f"[ZALO] Forward Admin (wants_boss): {sender_id}")
+        else:
+            # Chay BM25 xem co phai cau hoi quy dinh khong
+            answer, source = _tra_loi_quy_dinh(msg_text)
+            if answer:
+                _user_state.pop(sender_id, None)
+                log_qa(sender_id, msg_text, answer)
+                reply = f'Cảm ơn bạn đã hỏi thông tin về quy định công ty! 😊\n\n{answer}'
+                if source:
+                    reply += f'\n\n(Nguồn: {source})'
+                zalo_send(sender_id, reply)
+                print(f"[ZALO] Bot tra loi quy dinh sau waiting_choice")
+            else:
+                # Van khong ro → hoi lai lan cuoi
+                _user_state.pop(sender_id, None)
+                zalo_send(sender_id,
+                    'Bạn có thể hỏi tôi về quy định công ty bất cứ lúc nào nha! 😊\n'
+                    'Nếu cần liên lạc Sếp, nhắn "liên lạc Sếp" là tôi chuyển liền.')
+                print(f"[ZALO] Khong ro y dinh, reset state")
 
         return jsonify({'status': 'ok'})
 
