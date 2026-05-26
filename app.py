@@ -531,6 +531,40 @@ def zalo_send(user_id, text):
 # Luu cau tra loi cuoi cung cho moi user (de tao audio khi can)
 _last_answers = {}  # {user_id: answer_text}
 
+# ── LOG CAU HOI ───────────────────────────────────────────────────────────────
+import datetime as _dt
+_qa_log = []   # [{time, user_id, question, answer}]
+LOG_FILE = os.path.join(BASE_DIR, "qa_log.json")
+
+def log_qa(user_id, question, answer):
+    """Ghi log cau hoi va cau tra loi."""
+    entry = {
+        'time': _dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'user_id': user_id,
+        'question': question,
+        'answer': answer,
+    }
+    _qa_log.append(entry)
+    # Luu xuong file (giu lai khi restart neu filesystem con)
+    try:
+        with open(LOG_FILE, 'w', encoding='utf-8') as f:
+            json.dump(_qa_log, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+def load_log_from_file():
+    """Doc log tu file neu co (sau khi restart)."""
+    if os.path.exists(LOG_FILE):
+        try:
+            with open(LOG_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                _qa_log.extend(data)
+                print(f"[LOG] Da doc {len(data)} ban ghi cu")
+        except Exception:
+            pass
+
+load_log_from_file()
+
 def zalo_generate_audio(text):
     """Tao file mp3 tu text bang gTTS."""
     if not GTTS_AVAILABLE:
@@ -704,6 +738,7 @@ def zalo_webhook():
             messages=[{'role': 'user', 'content': msg_text}]
         )
         answer = resp.content[0].text
+        log_qa(sender_id, msg_text, resp.content[0].text)
         if source:
             answer += f'\n\n(Nguon: {source})'
         zalo_send(sender_id, answer)
@@ -758,6 +793,75 @@ def save_zalo_cfg():
     cfg['zalo_app_secret']    = data.get('app_secret', '')
     save_config(cfg)
     return jsonify({'ok': True})
+
+# ── TRANG LOG CAU HOI ────────────────────────────────────────────────────────
+LOG_PASSWORD = os.environ.get('LOG_PASSWORD', 'nhatgo2026')
+
+@app.route('/logs')
+def logs_page():
+    pw = request.args.get('pw', '')
+    if pw != LOG_PASSWORD:
+        return '''<html><body style="font-family:Arial;padding:30px">
+<h2>Xem log cau hoi Zalo</h2>
+<form><input name="pw" type="password" placeholder="Mat khau" style="padding:8px;font-size:16px">
+<button type="submit" style="padding:8px 16px;font-size:16px">Dang nhap</button></form>
+</body></html>'''
+    total = len(_qa_log)
+    rows = ''
+    for e in reversed(_qa_log[-100:]):
+        q = e['question'][:80].replace('<','&lt;')
+        a = e['answer'][:120].replace('<','&lt;')
+        rows += f"<tr><td>{e['time']}</td><td>{q}</td><td>{a}...</td></tr>"
+    return f'''<html><body style="font-family:Arial;padding:20px">
+<h2>Log cau hoi Zalo — Nhat Go ({total} ban ghi)</h2>
+<p><a href="/logs/download?pw={pw}" style="background:#4CAF50;color:white;padding:10px 20px;
+text-decoration:none;border-radius:5px;font-size:16px">
+&#8681; Tai file Excel (.xlsx)</a></p>
+<table border="1" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:13px">
+<tr style="background:#f0f0f0"><th>Thoi gian</th><th>Cau hoi</th><th>Cau tra loi</th></tr>
+{rows}
+</table>
+<p style="color:gray">Chi hien 100 ban ghi gan nhat. Tai Excel de xem tat ca.</p>
+</body></html>'''
+
+@app.route('/logs/download')
+def logs_download():
+    pw = request.args.get('pw', '')
+    if pw != LOG_PASSWORD:
+        return 'Khong co quyen truy cap', 403
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'Log Cau Hoi Zalo'
+        # Header
+        headers = ['STT', 'Thoi gian', 'User ID', 'Cau hoi', 'Cau tra loi']
+        ws.append(headers)
+        for cell in ws[1]:
+            cell.font = Font(bold=True, color='FFFFFF')
+            cell.fill = PatternFill('solid', fgColor='1E6B3C')
+            cell.alignment = Alignment(horizontal='center')
+        # Du lieu
+        for i, e in enumerate(_qa_log, 1):
+            ws.append([i, e['time'], e['user_id'], e['question'], e['answer']])
+        # Do rong cot
+        ws.column_dimensions['A'].width = 6
+        ws.column_dimensions['B'].width = 20
+        ws.column_dimensions['C'].width = 20
+        ws.column_dimensions['D'].width = 45
+        ws.column_dimensions['E'].width = 60
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        fname = f"LogCauHoi_NhatGo_{_dt.datetime.now().strftime('%Y%m%d')}.xlsx"
+        return Response(
+            buf.read(),
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            headers={'Content-Disposition': f'attachment; filename="{fname}"'}
+        )
+    except ImportError:
+        return 'Chua cai openpyxl. Chay: pip install openpyxl', 500
 
 # ── MAIN ─────────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
