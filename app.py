@@ -709,9 +709,12 @@ def zalo_webhook():
     if event != 'user_send_text':
         return jsonify({'status': 'ok'})
 
-    sender_id = (data.get('sender') or {}).get('id', '')
+    sender_id   = (data.get('sender') or {}).get('id', '')
+    sender_name = (data.get('sender') or {}).get('display_name', '') or \
+                  (data.get('sender') or {}).get('name', '')
     msg_text  = (data.get('message') or {}).get('text', '').strip()
     msg_id    = (data.get('message') or {}).get('msg_id', '') or f"{sender_id}_{msg_text[:30]}"
+    print(f"[ZALO] Sender data: {data.get('sender', {})}")
 
     if not sender_id or not msg_text:
         return jsonify({'status': 'ok'})
@@ -781,13 +784,14 @@ def zalo_webhook():
     def _forward_admin(original_msg):
         """Chuyen tin nhan toi Admin kem ten nguoi nhan."""
         if ADMIN_ZALO_ID and sender_id != ADMIN_ZALO_ID:
-            name, phone = _get_user_info(sender_id)
+            # Uu tien ten tu webhook, neu khong co thi lay tu API
+            name = sender_name
+            if not name:
+                name, _ = _get_user_info(sender_id)
             name_line = f'👤 Tên: {name}' if name else f'👤 ID: {sender_id}'
-            phone_line = f'📞 SĐT: {phone}\n' if phone else ''
             zalo_send(ADMIN_ZALO_ID,
                 f'📨 Nhân viên nhắn tin:\n'
                 f'{name_line}\n'
-                f'{phone_line}'
                 f'💬 Nội dung: "{original_msg}"\n\n'
                 f'→ Vào oa.zalo.me để trả lời trực tiếp.')
 
