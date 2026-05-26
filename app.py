@@ -41,7 +41,7 @@ app = Flask(__name__)
 BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE  = os.path.join(BASE_DIR, "config.json")
 KB_FILE      = os.path.join(BASE_DIR, "SoQuyDinhTongHop_NhatGo.md")
-DOCX_KB_FILE = os.path.join(BASE_DIR, "..", "ToanBoQuyDinh_NhatGo_2026.docx")
+DOCX_KB_FILE = os.path.join(BASE_DIR, "ToanBoQuyDinh_NhatGo_2026.docx")
 INDEX_CACHE  = os.path.join(BASE_DIR, "bm25_index.pkl")
 FOLDER7_PATH = os.path.join(BASE_DIR, "..", "..", "1. MAU-NS", "7.QUI DINH CTY NHAT GO")
 SSL_CERT     = os.path.join(BASE_DIR, "server.crt")
@@ -259,23 +259,17 @@ def build_index():
         try:
             with open(INDEX_CACHE, 'rb') as f:
                 data = pickle.load(f)
-            if data.get('version') == '3.0' and len(data.get('chunks', [])) > 150:
+            if data.get('version') == '4.0' and len(data.get('chunks', [])) > 0:
                 print(f"[INDEX] Da load cache: {len(data['chunks'])} chunks")
                 return data['bm25'], data['chunks']
         except Exception:
             pass
 
-    print("[INDEX] Dang xay dung BM25 index...")
+    print("[INDEX] Dang xay dung BM25 index tu ToanBoQuyDinh_NhatGo_2026.docx...")
     chunks = []
-    md_chunks = extract_chunks_from_md(KB_FILE)
-    chunks.extend(md_chunks)
-    print(f"[INDEX] MD: {len(md_chunks)} chunks")
     docx_chunks = extract_chunks_from_docx(DOCX_KB_FILE)
     chunks.extend(docx_chunks)
-    print(f"[INDEX] DOCX 2026: {len(docx_chunks)} chunks")
-    f7_chunks = load_folder7_all_docs(FOLDER7_PATH)
-    chunks.extend(f7_chunks)
-    print(f"[INDEX] Folder 7: {len(f7_chunks)} chunks")
+    print(f"[INDEX] DOCX: {len(docx_chunks)} chunks")
 
     if not chunks:
         print("[INDEX] CANH BAO: Khong co chunk nao!")
@@ -287,7 +281,7 @@ def build_index():
 
     try:
         with open(INDEX_CACHE, 'wb') as f:
-            pickle.dump({'version': '3.0', 'bm25': bm25, 'chunks': chunks}, f)
+            pickle.dump({'version': '4.0', 'bm25': bm25, 'chunks': chunks}, f)
     except Exception as e:
         print(f"[INDEX] Khong luu cache duoc: {e}")
 
