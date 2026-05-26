@@ -638,6 +638,40 @@ def zalo_webhook():
 
     return jsonify({'status': 'ok'})
 
+@app.route('/zalo/oauth')
+def zalo_oauth():
+    """Nhan code tu Zalo OAuth va doi lay access token moi."""
+    code = request.args.get('code', '')
+    if not code:
+        return '<h2>Khong co code. Vui long thu lai.</h2>', 400
+    cfg = load_config()
+    try:
+        res = _http.post(
+            'https://oauth.zaloapp.com/v4/oa/access_token',
+            data={
+                'code': code,
+                'app_id': cfg.get('zalo_app_id', ''),
+                'grant_type': 'authorization_code',
+            },
+            headers={'secret_key': cfg.get('zalo_app_secret', '')},
+            timeout=10
+        ).json()
+        if res.get('access_token'):
+            cfg['zalo_access_token'] = res['access_token']
+            if res.get('refresh_token'):
+                cfg['zalo_refresh_token'] = res['refresh_token']
+            save_config(cfg)
+            print(f"[ZALO] Da cap nhat token moi qua OAuth")
+            return f'''<h2>&#10003; Token da luu thanh cong!</h2>
+<p>Access token: {res["access_token"][:30]}...</p>
+<p>Hay copy access_token va refresh_token vao Render.com Environment Variables:</p>
+<pre>ZALO_ACCESS_TOKEN={res["access_token"]}</pre>
+<pre>ZALO_REFRESH_TOKEN={res.get("refresh_token","")}</pre>
+<p><a href="/">Quay ve trang chu</a></p>'''
+        return f'<h2>Loi: {res}</h2>', 400
+    except Exception as e:
+        return f'<h2>Loi: {e}</h2>', 500
+
 @app.route('/api/save-zalo', methods=['POST'])
 def save_zalo_cfg():
     data = request.get_json()
