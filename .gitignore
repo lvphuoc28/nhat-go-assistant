@@ -8,17 +8,10 @@ server.key
 
 # File Windows khong can thiet
 cloudflared.exe
-*.bat
 config.yml
 __pycache__/
 *.pyc
 *.pyo
-
-# File tam
-Download
-Nhan
-Sau
-Tim
-HUONG_DAN_CHAY.txt
-CAI_GIONG_VIET.bat
-TEST_GIONG.bat
+# Block tat ca .bat ngoai tru CapNhatBot.bat
+*.bat
+!CapNhatBot.bat
