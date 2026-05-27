@@ -1,5 +1,5 @@
 """
-Rebuild BM25 index tu file ToanBoQuyDinh_NhatGo_2026.docx
+Rebuild BM25 index tu file NhatGo_TOAN_BO_QUY_DINH_2015_2026.docx
 Chay: python rebuild_index.py
 """
 import os, re, pickle
@@ -17,7 +17,7 @@ except ImportError:
     exit(1)
 
 BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
-DOCX_KB_FILE = os.path.join(BASE_DIR, "ToanBoQuyDinh_NhatGo_2026.docx")
+DOCX_KB_FILE = os.path.join(BASE_DIR, "NhatGo_TOAN_BO_QUY_DINH_2015_2026.docx")
 INDEX_CACHE  = os.path.join(BASE_DIR, "bm25_index.pkl")
 
 STOPWORDS = {
@@ -40,50 +40,94 @@ def tokenize_vi(text):
     tokens = [t for t in tokens if t not in STOPWORDS and len(t) >= 2]
     return tokens if tokens else text.split()
 
-def _extract_year(meta_line):
-    m = re.search(r'(201[89]|202\d)', meta_line)
-    return m.group(1) if m else '?'
+_SKIP_TITLES = {'TỔNG HỢP TOÀN BỘ QUY ĐỊNH', 'CÔNG TY TNHH', 'MỤC LỤC', 'NHẤT GỖ'}
+
+def _para_bold_size(p):
+    bold, size = False, 11.0
+    for r in p.runs:
+        if r.text.strip():
+            if r.bold:
+                bold = True
+            if r.font.size:
+                size = max(size, r.font.size.pt)
+    return bold, size
+
+def _is_separator(text):
+    stripped = text.replace(' ', '')
+    return len(stripped) > 5 and set(stripped) <= {'─', '═', '-', '=', '|'}
 
 def extract_chunks(filepath):
     chunks = []
     if not os.path.exists(filepath):
         print(f"LOI: Khong tim thay file {filepath}")
         return chunks
-    doc = DocxDocument(filepath)
-    current_title, current_meta, current_body = '', '', []
-    for para in doc.paragraphs:
-        text = para.text.strip()
-        if not text:
-            continue
-        style = para.style.name if para.style else ''
-        if style.startswith('Heading 2'):
-            if current_body and len('\n'.join(current_body)) > 150:
-                full = current_title + '\n' + current_meta + '\n' + '\n'.join(current_body)
-                chunks.append({
-                    'title': current_title[:120],
-                    'text': full,
-                    'source': current_title[:80],
-                    'year': _extract_year(current_meta),
-                    'tokens': tokenize_vi(full),
-                })
-            current_title, current_meta, current_body = text, '', []
-        elif style.startswith('Heading 1'):
-            current_title, current_body = '', []
-        else:
-            if 'Nam ban hanh' in text or 'File goc' in text:
-                current_meta = text
-            elif text != '[File .doc cu - can mo truc tiep de xem noi dung]':
-                current_body.append(text)
-    if current_body and len('\n'.join(current_body)) > 150:
-        full = current_title + '\n' + current_meta + '\n' + '\n'.join(current_body)
+
+    def _flush(chapter, year, body):
+        body_text = '\n'.join(body).strip()
+        if not body_text or len(body_text) < 80:
+            return
+        title = f"{chapter} (nam {year})" if year != '?' else chapter
+        full = f"CHU DE: {chapter}\nNAM: {year}\n\n{body_text}"
         chunks.append({
-            'title': current_title[:120],
+            'title': title[:120],
             'text': full,
-            'source': current_title[:80],
-            'year': _extract_year(current_meta),
+            'source': chapter[:80],
+            'year': year,
             'tokens': tokenize_vi(full),
         })
+
+    doc = DocxDocument(filepath)
+    current_chapter = ''
+    current_year = '?'
+    current_body = []
+    in_content = False
+
+    for p in doc.paragraphs:
+        text = p.text.strip()
+        if not text:
+            continue
+        bold, size = _para_bold_size(p)
+
+        if not in_content:
+            if bold and size >= 12 and 'CHƯƠNG' in text.upper():
+                in_content = True
+            continue
+
+        if _is_separator(text) or size <= 9:
+            _flush(current_chapter, current_year, current_body)
+            current_body = []
+            current_year = '?'
+            continue
+
+        if bold and size >= 16:
+            if any(kw in text.upper() for kw in _SKIP_TITLES):
+                continue
+            if 'CHƯƠNG' in text.upper():
+                continue
+            _flush(current_chapter, current_year, current_body)
+            current_chapter = text
+            current_year = '?'
+            current_body = []
+            continue
+
+        if bold and 12 <= size <= 14:
+            if 'CHƯƠNG' in text.upper():
+                continue
+            m = re.search(r'[Nn]ăm\s+(\d{4})', text)
+            if m:
+                _flush(current_chapter, current_year, current_body)
+                current_year = m.group(1)
+                current_body = []
+                continue
+
+        if '📁' in text or 'File gốc' in text or 'File goc' in text:
+            continue
+
+        current_body.append(text)
+
+    _flush(current_chapter, current_year, current_body)
     return chunks
+
 
 if __name__ == '__main__':
     print(f"Dang doc: {DOCX_KB_FILE}")
@@ -91,11 +135,18 @@ if __name__ == '__main__':
     if not chunks:
         print("CANH BAO: Khong co noi dung nao duoc doc!")
         exit(1)
-    print(f"So muc quy dinh: {len(chunks)}")
+    print(f"So chunks: {len(chunks)}")
+
+    from collections import Counter
+    topics = Counter(c['source'] for c in chunks)
+    print("\nThong ke chu de:")
+    for topic, cnt in topics.most_common():
+        print(f"  {topic[:50]}: {cnt} van ban")
+
     tokenized = [c['tokens'] for c in chunks]
     bm25 = BM25Okapi(tokenized)
     with open(INDEX_CACHE, 'wb') as f:
-        pickle.dump({'version': '4.0', 'bm25': bm25, 'chunks': chunks}, f)
+        pickle.dump({'version': '5.0', 'bm25': bm25, 'chunks': chunks}, f)
     size_kb = os.path.getsize(INDEX_CACHE) // 1024
-    print(f"Da luu index: bm25_index.pkl ({size_kb}KB)")
+    print(f"\nDa luu index v5.0: bm25_index.pkl ({size_kb}KB)")
     print("Rebuild thanh cong!")

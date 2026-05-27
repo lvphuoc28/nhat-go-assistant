@@ -41,7 +41,7 @@ app = Flask(__name__)
 BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE  = os.path.join(BASE_DIR, "config.json")
 KB_FILE      = os.path.join(BASE_DIR, "SoQuyDinhTongHop_NhatGo.md")
-DOCX_KB_FILE = os.path.join(BASE_DIR, "ToanBoQuyDinh_NhatGo_2026.docx")
+DOCX_KB_FILE = os.path.join(BASE_DIR, "NhatGo_TOAN_BO_QUY_DINH_2015_2026.docx")
 INDEX_CACHE  = os.path.join(BASE_DIR, "bm25_index.pkl")
 FOLDER7_PATH = os.path.join(BASE_DIR, "..", "..", "1. MAU-NS", "7.QUI DINH CTY NHAT GO")
 SSL_CERT     = os.path.join(BASE_DIR, "server.crt")
@@ -138,44 +138,114 @@ def extract_chunks_from_md(filepath):
     return chunks
 
 def extract_chunks_from_docx(filepath):
+    """
+    Parser tong quat cho NhatGo_TOAN_BO_QUY_DINH_2015_2026.docx.
+    Cau truc: dung Bold + font-size thay vi Heading style.
+      - sz >= 16, bold  => ten chuong (vi du: DEO THE VA CHAM CONG)
+      - sz 12-14, bold  => chi so van ban + nam (1. Van ban nam 2023)
+      - sz <= 9         => duong ke phan cach ─────
+    """
     chunks = []
     if not DOCX_AVAILABLE or not os.path.exists(filepath):
         return chunks
+
+    # Cac tu khoa tieu de trang bia / muc luc — bo qua
+    _SKIP_TITLES = {'TỔNG HỢP TOÀN BỘ QUY ĐỊNH', 'CÔNG TY TNHH', 'MỤC LỤC',
+                    'NHẤT GỖ', 'BIÊN SOẠN', 'TỔNG SỐ VĂN BẢN'}
+
+    def _para_bold_size(p):
+        bold, size = False, 11.0
+        for r in p.runs:
+            if r.text.strip():
+                if r.bold:
+                    bold = True
+                if r.font.size:
+                    size = max(size, r.font.size.pt)
+        return bold, size
+
+    def _is_separator(text):
+        stripped = text.replace(' ', '')
+        return len(stripped) > 5 and set(stripped) <= {'─', '═', '-', '=', '|'}
+
+    def _flush(chapter, year, body):
+        body_text = '\n'.join(body).strip()
+        if not body_text or len(body_text) < 80:
+            return
+        title = f"{chapter} (năm {year})" if year != '?' else chapter
+        full = f"CHỦ ĐỀ: {chapter}\nNĂM: {year}\n\n{body_text}"
+        chunks.append({
+            'title': title[:120],
+            'text': full,
+            'source': chapter[:80],
+            'year': year,
+            'tokens': tokenize_vi(full),
+        })
+
     try:
         doc = DocxDocument(filepath)
-        current_title, current_meta, current_body = '', '', []
-        for para in doc.paragraphs:
-            text = para.text.strip()
+        current_chapter = ''
+        current_year = '?'
+        current_body = []
+        in_content = False   # bo qua truoc CHUONG 1
+
+        for p in doc.paragraphs:
+            text = p.text.strip()
             if not text:
                 continue
-            style = para.style.name if para.style else ''
-            if style.startswith('Heading 2'):
-                if current_body and len('\n'.join(current_body)) > 150:
-                    full = current_title + '\n' + current_meta + '\n' + '\n'.join(current_body)
-                    chunks.append({
-                        'title': current_title[:120], 'text': full,
-                        'source': current_title[:80],
-                        'year': _extract_year(current_meta),
-                        'tokens': tokenize_vi(full),
-                    })
-                current_title, current_meta, current_body = text, '', []
-            elif style.startswith('Heading 1'):
-                current_title, current_body = '', []
-            else:
-                if 'Nam ban hanh' in text or 'File goc' in text:
-                    current_meta = text
-                elif text != '[File .doc cu - can mo truc tiep de xem noi dung]':
-                    current_body.append(text)
-        if current_body and len('\n'.join(current_body)) > 150:
-            full = current_title + '\n' + current_meta + '\n' + '\n'.join(current_body)
-            chunks.append({
-                'title': current_title[:120], 'text': full,
-                'source': current_title[:80],
-                'year': _extract_year(current_meta),
-                'tokens': tokenize_vi(full),
-            })
+
+            bold, size = _para_bold_size(p)
+
+            # Bat dau noi dung khi gap CHUONG dau tien
+            if not in_content:
+                if bold and size >= 12 and 'CHƯƠNG' in text.upper():
+                    in_content = True
+                continue
+
+            # Duong ke phan cach → luu chunk hien tai
+            if _is_separator(text) or size <= 9:
+                _flush(current_chapter, current_year, current_body)
+                current_body = []
+                current_year = '?'
+                continue
+
+            # Ten chuong lon (ĐEO THẺ, THỜI GIỜ LÀM VIỆC…)
+            if bold and size >= 16:
+                if any(kw in text.upper() for kw in _SKIP_TITLES):
+                    continue
+                if 'CHƯƠNG' in text.upper():
+                    continue
+                # Luu chunk cu truoc khi chuyen chuong
+                _flush(current_chapter, current_year, current_body)
+                current_chapter = text
+                current_year = '?'
+                current_body = []
+                continue
+
+            # Danh muc van ban: "1. Văn bản năm 2023"
+            if bold and 12 <= size <= 14:
+                if 'CHƯƠNG' in text.upper():
+                    continue
+                m = re.search(r'[Nn]ăm\s+(\d{4})', text)
+                if m:
+                    _flush(current_chapter, current_year, current_body)
+                    current_year = m.group(1)
+                    current_body = []
+                    continue
+
+            # Bo qua dong tham chieu file goc
+            if '📁' in text or 'File gốc' in text or 'File goc' in text:
+                continue
+
+            # Noi dung thuong
+            current_body.append(text)
+
+        # Luu chunk cuoi
+        _flush(current_chapter, current_year, current_body)
+
     except Exception as e:
         print(f"[DOCX] Loi doc: {e}")
+        import traceback; traceback.print_exc()
+
     return chunks
 
 def _extract_year(meta_line):
@@ -259,8 +329,8 @@ def build_index():
         try:
             with open(INDEX_CACHE, 'rb') as f:
                 data = pickle.load(f)
-            if data.get('version') == '4.0' and len(data.get('chunks', [])) > 0:
-                print(f"[INDEX] Da load cache: {len(data['chunks'])} chunks")
+            if data.get('version') == '5.0' and len(data.get('chunks', [])) > 0:
+                print(f"[INDEX] Da load cache v5.0: {len(data['chunks'])} chunks")
                 return data['bm25'], data['chunks']
         except Exception:
             pass
@@ -281,7 +351,7 @@ def build_index():
 
     try:
         with open(INDEX_CACHE, 'wb') as f:
-            pickle.dump({'version': '4.0', 'bm25': bm25, 'chunks': chunks}, f)
+            pickle.dump({'version': '5.0', 'bm25': bm25, 'chunks': chunks}, f)
     except Exception as e:
         print(f"[INDEX] Khong luu cache duoc: {e}")
 
@@ -680,18 +750,20 @@ def zalo_refresh():
     return None
 
 _ZALO_SYSTEM = (
-    "Ban la Tro Ly Nhat Go -- tra loi cau hoi nhan vien Cong ty TNHH MTV Nhat Go.\n\n"
-    "QUY TAC BAT BUOC:\n"
-    "1. CHI dung thong tin trong VAN BAN QUY DINH ben duoi. KHONG dung kien thuc ben ngoai.\n"
-    "2. UU TIEN quy dinh NAM MOI NHAT. Neu co nhieu phien ban, chi lay phien ban moi nhat.\n"
-    "3. TOM GON, DE HIEU: Neu ro so ngay, so lan, muc tien, dieu kien cu the.\n"
-    "4. Neu khong co thong tin: noi 'Cau hoi nay chua co thong tin, anh/chi/em lien he Nhan Su nhe.'\n"
-    "5. Cuoi tra loi ghi: (Nguon: ten van ban, nam)\n\n"
-    "ĐỊNH DẠNG:\n"
-    "KHÔNG dùng markdown. Liệt kê bằng số thứ tự ngắn gọn.\n"
-    "Xưng 'tôi', gọi nhân viên là 'bạn'. Viết có dấu tiếng Việt đầy đủ.\n"
-    "Trả lời NGẮN GỌN, TỐI ĐA 300 TỪ, dễ hiểu như đang giải thích cho bạn bè. 😊\n\n"
-    "VAN BAN QUY DINH:\n"
+    "Bạn là Trợ Lý Nhất Gỗ — hỗ trợ nhân viên Công ty TNHH MTV Nhất Gỗ tra cứu quy định nội bộ.\n\n"
+    "QUY TẮC:\n"
+    "1. Chỉ dùng thông tin từ VĂN BẢN QUY ĐỊNH bên dưới. Không dùng kiến thức bên ngoài.\n"
+    "2. Ưu tiên quy định NĂM MỚI NHẤT khi có nhiều phiên bản.\n"
+    "3. Trả lời ĐẦY ĐỦ nội dung chính: số ngày, số lần, mức tiền, điều kiện cụ thể.\n"
+    "4. Nếu không có thông tin: 'Câu hỏi này tôi chưa tìm thấy trong tài liệu, "
+    "bạn liên hệ Nhân Sự để được hỗ trợ nhé!'\n"
+    "5. Cuối câu trả lời ghi nguồn: (Nguồn: chủ đề, năm)\n\n"
+    "GIỌNG VĂN:\n"
+    "Lịch sự, thân thiện, gần gũi — như đồng nghiệp giải thích cho nhau.\n"
+    "Xưng 'mình', gọi nhân viên là 'bạn'. Viết tiếng Việt có dấu đầy đủ.\n"
+    "KHÔNG dùng markdown. Liệt kê bằng số thứ tự (1. 2. 3.).\n"
+    "Ngắn gọn nhưng đủ ý — tối đa 350 từ. 😊\n\n"
+    "VĂN BẢN QUY ĐỊNH:\n"
 )
 
 @app.route('/zalo_verifierEVwu6RxHR2L3s-mRjgyuH5A9iqo-_sOLCZam.html')
@@ -726,7 +798,9 @@ def zalo_webhook():
         return jsonify({'status': 'ok'})
     _processed_msg_ids.append(msg_id)
 
-    print(f"[ZALO] Sender ID: {sender_id}")
+    # Log raw sender data de xem Zalo gui nhung field gi
+    print(f"[ZALO] Sender raw: {data.get('sender', {})}")
+    print(f"[ZALO] Sender ID: {sender_id}, Name: '{sender_name}'")
     print(f"[ZALO] Hoi: {msg_text[:80]}")
 
     ADMIN_ZALO_ID = os.environ.get('ADMIN_ZALO_ID', '7072813436072789004')
@@ -789,12 +863,17 @@ def zalo_webhook():
         """Chuyen tin nhan toi Admin kem ten nguoi nhan."""
         if ADMIN_ZALO_ID and sender_id != ADMIN_ZALO_ID:
             name = _user_names.get(sender_id, '')
-            name_line = f'👤 Tên: {name}' if name else f'👤 ID: {sender_id}'
+            if name:
+                id_line = f'👤 Tên Zalo: {name}'
+            else:
+                id_line = f'👤 ID: {sender_id}'
+            # Link truc tiep den hoi thoai tren oa.zalo.me
+            chat_link = f'https://oa.zalo.me/home/messages/{sender_id}'
             zalo_send(ADMIN_ZALO_ID,
                 f'📨 Nhân viên nhắn tin:\n'
-                f'{name_line}\n'
+                f'{id_line}\n'
                 f'💬 Nội dung: "{original_msg}"\n\n'
-                f'→ Vào oa.zalo.me để trả lời trực tiếp.')
+                f'🔗 Xem hội thoại: {chat_link}')
 
     # ── TRANG THAI: Dang cho chon (quy dinh hay lien lac Sep) ───────────────
     state = _user_state.get(sender_id, {})
