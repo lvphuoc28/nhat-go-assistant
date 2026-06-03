@@ -605,7 +605,8 @@ _last_answers = {}  # {user_id: answer_text}
 _user_state = {}  # {user_id: {'state': ..., 'msg': ...}}
 
 # Luu ten nhan vien (hoi 1 lan, dung mai mai)
-_user_names = {}  # {user_id: 'Ten nhan vien'}
+_user_names  = {}  # {user_id: 'Ten nhan vien'}
+_user_phones = {}  # {user_id: 'SDT'}
 
 # Deduplication: luu message ID da xu ly de tranh xu ly 2 lan
 import collections
