@@ -891,7 +891,7 @@ def zalo_webhook():
                 f'📨 Nhân viên nhắn tin:\n'
                 f'{id_line}\n'
                 f'💬 Nội dung: "{original_msg}"\n\n'
-                f'→ Vào oa.zalo.me để trả lời trực tiếp')
+                f'→ Mở app Zalo OA hoặc oa.zalo.me để trả lời')
 
     # ── TRANG THAI: Cho nhap ten de forward ────────────────────────────────────
     state = _user_state.get(sender_id, {})
