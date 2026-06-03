@@ -840,24 +840,25 @@ def zalo_webhook():
             return None, None
 
     def _get_user_info(uid):
-        """Lay ten va so dien thoai cua follower tu Zalo API."""
+        """Lay ten+SDT qua proxy IP Viet Nam (14.225.222.89)."""
         try:
             cfg = load_config()
             token = cfg.get('zalo_access_token', '')
             res = _http.get(
-                'https://openapi.zalo.me/v2.0/oa/getprofile',
-                params={'data': json.dumps({'user_id': uid})},
-                headers={'access_token': token},
+                'http://14.225.222.89:8080/profile',
+                params={'user_id': uid, 'token': token, 'secret': 'nhatgo2026proxy'},
                 timeout=5
             ).json()
-            print(f"[ZALO] Profile API: {res}")
-            data = res.get('data', {})
-            name = data.get('display_name', '') or data.get('name', '')
-            phone = data.get('phone', '')
-            return name, phone
+            if res.get('error') == 0:
+                data = res.get('data', {})
+                name = data.get('display_name', '') or data.get('name', '')
+                phone = data.get('phone', '')
+                print(f"[PROXY] Ten: {name}, SDT: {phone}")
+                return name, phone
+            print(f"[PROXY] Loi: {res.get('error')}")
         except Exception as e:
-            print(f"[ZALO] Loi lay profile: {e}")
-            return '', ''
+            print(f"[PROXY] Loi ket noi: {e}")
+        return '', ''
 
     def _forward_admin(original_msg):
         """Chuyen tin nhan toi Admin kem ten nguoi nhan."""
