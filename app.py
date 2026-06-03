@@ -893,6 +893,28 @@ def zalo_webhook():
                 f'💬 Nội dung: "{original_msg}"\n\n'
                 f'🔗 Xem hội thoại: {chat_link}')
 
+    # ── TRANG THAI: Cho nhap ten de forward ────────────────────────────────────
+    state = _user_state.get(sender_id, {})
+    if state.get('state') == 'waiting_name_for_forward':
+        name = msg_text.strip()
+        if name:
+            _user_names[sender_id] = name
+        orig = state.get('msg', '')
+        _user_state.pop(sender_id, None)
+        # Forward voi ten
+        cfg2 = load_config()
+        api_key2 = cfg2.get('api_key','').strip()
+        def _fwd2(omsg):
+            if ADMIN_ZALO_ID and sender_id != ADMIN_ZALO_ID:
+                nm = _user_names.get(sender_id,'')
+                ph = _user_phones.get(sender_id,'')
+                ln = f'👤 Tên: {nm}' if nm else f'👤 ID: {sender_id}'
+                if ph: ln += f'\n📞 SĐT: {ph}'
+                zalo_send(ADMIN_ZALO_ID, f'📨 Nhân viên nhắn tin:\n{ln}\n💬 Nội dung: "{omsg}"\n\n🔗 https://oa.zalo.me/home/messages/{sender_id}')
+        _fwd2(orig)
+        zalo_send(sender_id, f'Cảm ơn {name}! Tin nhắn đã chuyển tới Sếp rồi nha 📨\n\nSếp sẽ liên hệ lại sớm! 😊')
+        return jsonify({'status': 'ok'})
+
     # ── TRANG THAI: Dang cho chon (quy dinh hay lien lac Sep) ───────────────
     state = _user_state.get(sender_id, {})
     if state.get('state') == 'waiting_choice':
@@ -908,14 +930,14 @@ def zalo_webhook():
         wants_boss = any(kw in msg_lower for kw in _BOSS_KEYWORDS)
 
         if wants_boss:
-            # Muon lien lac Sep → forward ngay
-            _user_state.pop(sender_id, None)
             orig = state.get('msg', msg_text)
-            _forward_admin(f'{orig}\n→ Trả lời: {msg_text}')
-            zalo_send(sender_id,
-                'Tin nhắn của bạn đã được chuyển tới Sếp rồi nha! 📨\n\n'
-                'Nếu Sếp chưa trả lời bạn, chắc là Sếp đang bận, '
-                'xíu Sếp trả lời liền, nhưng không trễ quá 24 tiếng đâu nha! 😊')
+            _user_state.pop(sender_id, None)
+            if sender_id in _user_names:
+                _forward_admin(orig)
+                zalo_send(sender_id, 'Tin nhắn đã chuyển tới Sếp rồi nha! 📨\nSếp sẽ liên hệ lại sớm! 😊')
+            else:
+                _user_state[sender_id] = {'state': 'waiting_name_for_forward', 'msg': orig}
+                zalo_send(sender_id, 'Để Sếp tiện liên hệ lại, bạn cho mình biết tên nhé? 😊')
             print(f"[ZALO] Forward Admin (wants_boss): {sender_id}")
         else:
             # Chay BM25 xem co phai cau hoi quy dinh khong
