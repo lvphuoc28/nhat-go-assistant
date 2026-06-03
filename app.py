@@ -891,7 +891,7 @@ def zalo_webhook():
                 f'📨 Nhân viên nhắn tin:\n'
                 f'{id_line}\n'
                 f'💬 Nội dung: "{original_msg}"\n\n'
-                f'🔗 Xem hội thoại: {chat_link}')
+                f'→ Vào oa.zalo.me để trả lời trực tiếp')
 
     # ── TRANG THAI: Cho nhap ten de forward ────────────────────────────────────
     state = _user_state.get(sender_id, {})
@@ -910,7 +910,7 @@ def zalo_webhook():
                 ph = _user_phones.get(sender_id,'')
                 ln = f'👤 Tên: {nm}' if nm else f'👤 ID: {sender_id}'
                 if ph: ln += f'\n📞 SĐT: {ph}'
-                zalo_send(ADMIN_ZALO_ID, f'📨 Nhân viên nhắn tin:\n{ln}\n💬 Nội dung: "{omsg}"\n\n🔗 https://oa.zalo.me/home/messages/{sender_id}')
+                zalo_send(ADMIN_ZALO_ID, f'📨 Nhân viên nhắn tin:\n{ln}\n💬 Nội dung: "{omsg}"\n\n→ Vào oa.zalo.me để trả lời trực tiếp')
         _fwd2(orig)
         zalo_send(sender_id, f'Cảm ơn {name}! Tin nhắn đã chuyển tới Sếp rồi nha 📨\n\nSếp sẽ liên hệ lại sớm! 😊')
         return jsonify({'status': 'ok'})
