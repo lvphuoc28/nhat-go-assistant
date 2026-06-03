@@ -860,6 +860,22 @@ def zalo_webhook():
             print(f"[PROXY] Loi ket noi: {e}")
         return '', ''
 
+    # Auto-fetch ten+SDT qua proxy cho user moi
+    if sender_id not in _user_names and sender_id != ADMIN_ZALO_ID:
+        _name, _phone = _get_user_info(sender_id)
+        if _name:
+            _user_names[sender_id] = _name
+            if _phone:
+                _user_phones[sender_id] = _phone
+            print(f"[PROXY] Da luu: {_name} | {_phone}")
+
+    # Lay ten tu proxy VN
+    if sender_id not in _user_names and sender_id != ADMIN_ZALO_ID:
+        _n, _p = _get_user_info(sender_id)
+        if _n:
+            _user_names[sender_id] = _n
+            if _p: _user_phones[sender_id] = _p
+
     def _forward_admin(original_msg):
         """Chuyen tin nhan toi Admin kem ten nguoi nhan."""
         if ADMIN_ZALO_ID and sender_id != ADMIN_ZALO_ID:
