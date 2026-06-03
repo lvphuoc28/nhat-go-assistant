@@ -886,7 +886,7 @@ def zalo_webhook():
             else:
                 id_line = f'👤 ID: {sender_id}'
             # Link truc tiep den hoi thoai tren oa.zalo.me
-            chat_link = f'https://oa.zalo.me/home/messages/{sender_id}'
+            chat_link = f'https://oa.zalo.me/home/messages?uid={sender_id}'
             zalo_send(ADMIN_ZALO_ID,
                 f'📨 Nhân viên nhắn tin:\n'
                 f'{id_line}\n'
